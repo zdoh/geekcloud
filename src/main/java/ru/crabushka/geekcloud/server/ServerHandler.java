@@ -1,8 +1,10 @@
 package ru.crabushka.geekcloud.server;
 
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
+import ru.crabushka.geekcloud.common.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -68,7 +70,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
 
         if (logged) {
             if (msg instanceof FileTransferMessage) {
-                saveFileToStorage((FileTranferMessage) msg);
+                saveFileToStorage((FileTransferMessage) msg);
             } else if (msg instanceof CommandMessage) {
                 System.out.println("Server received a command " + ((CommandMessage) msg).getCommand());
                 proccessCommand((CommandMessage) msg, ctx);
@@ -80,16 +82,16 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
 
     private void proccessCommand(CommandMessage msg, ChannelHandlerContext ctx) {
         if (msg.getCommand() == CommandMessage.LIST_FILES) {
-            sendData(new FileListMessage(getClientFilesList(msg.getObject()[0])), ctx);
+            sendData(new FileListMessage(getClientFilesList(msg.getObjects()[0])), ctx);
         } else if (msg.getCommand() == CommandMessage.DOWNLOAD_FILE) {
             try {
-                Path filePath = Paths.get(clientDir, (String) (msg.getObject()[0]));
+                Path filePath = Paths.get(clientDir, (String) (msg.getObjects()[0]));
                 sendData(new FileTransferMessage(filePath), ctx);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         } else if (msg.getCommand() == CommandMessage.DELETE_FILE) {
-            deleteFileFromStorage((String) (msg.getObject()[0]));
+            deleteFileFromStorage((String) (msg.getObjects()[0]));
         } else if (msg.getCommand() == CommandMessage.CREATE_DIR) {
             System.out.println("Create new directory by user " + nickName);
             createDirectory(msg);
@@ -97,8 +99,8 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void createDirectory(CommandMessage msg) {
-        Object inObj1 = msg.getObject()[0];
-        Object inObj2 = msg.getObject()[1];
+        Object inObj1 = msg.getObjects()[0];
+        Object inObj2 = msg.getObjects()[1];
 
         if (inObj1 instanceof  String && inObj2 instanceof String) {
             Path tempPath1 = Paths.get((String) inObj1);
@@ -143,9 +145,6 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-
-
-
     private List<String> getClientFilesList(Object folderName) {
         List<String> fileList = new ArrayList<>();
 
@@ -178,7 +177,12 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
     }
 
     private String getNickName(AuthMessage msg) {
-        return DbConnector.getNickname(msg.getLogin(), msg.getPassword);
+        return DbConnector.getNickname(msg.getLogin(), msg.getPasswd());
+    }
+
+    private void sendData(AbstractMessage msg, ChannelHandlerContext ctx) {
+        ChannelFuture channelFuture = ctx.writeAndFlush(msg);
+        System.out.println("AUTHOK send");
     }
 
 
